@@ -82,6 +82,10 @@ def main():
 
     tm = cv2.TickMeter()  # 设置计时器。
 
+    # act_type是一个字典，存放的是在一定时段内的姿态的统计判断
+    act_type = {"Open Mouth": 0, "Nod": 0, "Shake Head": 0}
+    # frame_num是已有的帧数
+    frame_num = 0
     while True:
         # Read frame, crop it, flip it, suits your needs.
         frame_got, frame = cap.read()  # frame_got为布尔值,frame为每一帧.
@@ -118,8 +122,26 @@ def main():
             tm.stop()
 
             # 判断眨眼、张嘴、点头、摇头
-            operate_detect.detect(frame, marks)
+            # action_type是一个数组，存放的是对每一帧的判断
+            action_type = operate_detect.detect(frame, marks)
+            print(action_type)
+            frame_num += 1
+            operate_detect.judge_accumulation(action_type, act_type)
+            if frame_num >= 10:
+                sort_list = sorted(act_type.items(), key=lambda item: item[1], reverse=True)
+                if act_type["Open Mouth"] == act_type["Nod"] == act_type["Shake Head"]:
+                    res = None
+                # 存在多个最大值
+                elif sort_list[0][1] == sort_list[1][1]:
+                    res = None
+                else:
+                    res = sort_list[0][0]
+                print(act_type, '\n', res)
+                # 满足条件后，初始化参数
+                frame_num = 0
+                act_type = {"Open Mouth": 0, "Nod": 0, "Shake Head": 0}
 
+            """ 绘制人脸以及相关的位姿信息 """
             # 将标记位置从本地CNN转换为全局图像。
             marks *= (facebox[2] - facebox[0])
             marks[:, 0] += facebox[0]
